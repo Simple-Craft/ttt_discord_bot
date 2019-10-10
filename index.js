@@ -60,7 +60,74 @@ get['connect'] = (params,ret) => {
 	}
 };
  
+
 get['mute'] = (params,ret) => {
 	let id = params.id;
 	let mute = params.mute
 	if (typeof id !== 'string' || typeof mute !== 'boolean') {
+		ret();
+		return;
+	}
+	log("Muted: " + id);
+	//let member = guild.members.find('id', id);
+	let member = guild.members.find(user => user.id === id);
+ 
+	if (member) {
+ 
+		if (isMemberInVoiceChannel(member)) {
+			if (!member.serverMute && mute) {
+				member.setMute(true,"dead players can't talk!").then(()=>{
+					setMemberMutedByBot(member);
+					ret({
+						success: true
+					});
+				}).catch((err)=>{
+					ret({
+						success: false,
+						error: err
+					});
+				});
+			}
+			if (member.serverMute && !mute) {
+				member.setMute(false).then(()=>{
+					setMemberMutedByBot(member,false);
+					ret({
+						success: true
+					});
+				}).catch((err)=>{
+					ret({
+						success: false,
+						error: err
+					});
+				});
+			}
+		}
+		else {
+			ret();
+		}
+ 
+	}else {
+		ret({
+			success: false,
+			err: 'member not found!' //TODO lua: remove from ids table + file
+		});
+	}
+ 
+}
+ 
+ 
+http.createServer((req,res)=>{
+	if (typeof req.headers.params === 'string' && typeof req.headers.req === 'string' && typeof get[req.headers.req] === 'function') {
+		try {
+			let params = JSON.parse(req.headers.params);
+			get[req.headers.req](params,(ret)=>res.end(JSON.stringify(ret)));
+		}catch(e) {
+			res.end('no valid JSON in params');
+		}
+	}else
+		res.end();
+}).listen({
+	port: PORT
+},()=>{
+	log('http interface is ready :)')
+});
